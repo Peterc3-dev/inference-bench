@@ -38,11 +38,11 @@ fn render_table(results: &[BenchResult], title: &str) {
     table.load_preset(UTF8_FULL);
     table.set_content_arrangement(ContentArrangement::Dynamic);
     table.set_header(vec![
-        Cell::new("Endpoint").fg(Color::Green),
-        Cell::new(format!("{} (mean)", title)).fg(Color::Green),
-        Cell::new("Std Dev").fg(Color::Green),
-        Cell::new("Runs").fg(Color::Green),
-        Cell::new("Mem Δ (sys)").fg(Color::Green),
+        Cell::new("Endpoint").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+        Cell::new(format!("{} (mean)", title)).fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+        Cell::new("Std Dev").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+        Cell::new("Runs").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+        Cell::new("Mem Δ (sys)").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
     ]);
 
     for r in results {
@@ -65,10 +65,10 @@ pub fn render_context(results: &[ContextResult], format: OutputFormat) {
             table.load_preset(UTF8_FULL);
             table.set_content_arrangement(ContentArrangement::Dynamic);
             table.set_header(vec![
-                Cell::new("Endpoint").fg(Color::Green),
-                Cell::new("Context").fg(Color::Green),
-                Cell::new("TTFT (ms)").fg(Color::Green),
-                Cell::new("TPS").fg(Color::Green),
+                Cell::new("Endpoint").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("Context").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("TTFT (ms)").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("TPS").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
             ]);
             for r in results {
                 table.add_row(vec![
@@ -107,10 +107,10 @@ pub fn render_compare(results: &[CompareResult], format: OutputFormat) {
             table.load_preset(UTF8_FULL);
             table.set_content_arrangement(ContentArrangement::Dynamic);
             table.set_header(vec![
-                Cell::new("Endpoint").fg(Color::Green),
-                Cell::new("TTFT (ms)").fg(Color::Green),
-                Cell::new("Gen TPS").fg(Color::Green),
-                Cell::new("Prompt TPS").fg(Color::Green),
+                Cell::new("Endpoint").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("TTFT (ms)").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("Gen TPS").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
+                Cell::new("Prompt TPS").fg(Color::Rgb { r: 0, g: 255, b: 200 }),
             ]);
             for r in results {
                 let prompt_str = if r.prompt_eval_tps > 0.0 {
