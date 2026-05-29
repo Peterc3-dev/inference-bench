@@ -7,7 +7,11 @@ mod output;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "inference-bench", version, about = "LLM inference benchmark CLI")]
+#[command(
+    name = "inference-bench",
+    version,
+    about = "LLM inference benchmark CLI"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -64,7 +68,10 @@ fn main() {
 
     let config = bench::BenchConfig {
         model: cli.model.clone(),
-        prompt: cli.prompt.clone().unwrap_or_else(|| "Explain the theory of relativity in simple terms.".to_string()),
+        prompt: cli
+            .prompt
+            .clone()
+            .unwrap_or_else(|| "Explain the theory of relativity in simple terms.".to_string()),
         tokens: cli.tokens,
         repeat: cli.repeat,
         warmup: cli.warmup,

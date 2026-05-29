@@ -73,9 +73,7 @@ fn stream_generate(ep: &Endpoint, model: &str, prompt: &str, num_predict: u32) -
             EndpointKind::Ollama | EndpointKind::FastFlowLM => {
                 endpoints::parse_ollama_stream_line(&line)
             }
-            EndpointKind::LlamaCpp => {
-                endpoints::parse_llamacpp_stream_line(&line)
-            }
+            EndpointKind::LlamaCpp => endpoints::parse_llamacpp_stream_line(&line),
         };
 
         if let Some((token, done)) = parsed {
@@ -93,7 +91,11 @@ fn stream_generate(ep: &Endpoint, model: &str, prompt: &str, num_predict: u32) -
 
     let total_time = start.elapsed().as_secs_f64();
     let ttft = first_token_time.unwrap_or(total_time * 1000.0);
-    let tps = if total_time > 0.0 { token_count as f64 / total_time } else { 0.0 };
+    let tps = if total_time > 0.0 {
+        token_count as f64 / total_time
+    } else {
+        0.0
+    };
 
     (ttft, tps, token_count)
 }
@@ -108,7 +110,8 @@ pub fn run_ttft(endpoints: &[Endpoint], config: &BenchConfig) -> Vec<BenchResult
         let mem_before = MemorySnapshot::capture();
         let mut values = Vec::new();
         for i in 0..config.repeat {
-            let (ttft, _, count) = stream_generate(ep, &config.model, &config.prompt, config.tokens);
+            let (ttft, _, count) =
+                stream_generate(ep, &config.model, &config.prompt, config.tokens);
             if count == 0 {
                 eprintln!("  Run {}: FAILED (no tokens)", i + 1);
                 continue;
@@ -179,7 +182,10 @@ pub fn run_context(endpoints: &[Endpoint], config: &BenchConfig) -> Vec<ContextR
             let long_prompt = config.prompt.repeat((ctx_len / 10).max(1) as usize);
             let target_len = ctx_len as usize * 4;
             let prompt = if long_prompt.len() > target_len {
-                match long_prompt.char_indices().nth(target_len.min(long_prompt.chars().count())) {
+                match long_prompt
+                    .char_indices()
+                    .nth(target_len.min(long_prompt.chars().count()))
+                {
                     Some((byte_idx, _)) => long_prompt[..byte_idx].to_string(),
                     None => long_prompt,
                 }
@@ -231,9 +237,7 @@ pub fn run_compare(endpoints: &[Endpoint], config: &BenchConfig) -> Vec<CompareR
                     EndpointKind::Ollama | EndpointKind::FastFlowLM => {
                         endpoints::parse_ollama_timings(&body_str)
                     }
-                    EndpointKind::LlamaCpp => {
-                        endpoints::parse_llamacpp_timings(&body_str)
-                    }
+                    EndpointKind::LlamaCpp => endpoints::parse_llamacpp_timings(&body_str),
                 };
                 match (timings.prompt_eval_count, timings.prompt_eval_duration_ns) {
                     (Some(count), Some(dur)) if dur > 0 => {

@@ -43,4 +43,15 @@ inference-bench throughput --url http://localhost:8080  # custom endpoint
 | `--url` | | Override endpoint URL |
 | `--prompt` | | Custom prompt text |
 
+## Development
+
+```bash
+cargo test            # run the unit test suite
+cargo clippy          # lint
+cargo fmt             # format
+```
+
+CI (build + test + clippy + fmt) runs on every push and pull request via
+GitHub Actions (`.github/workflows/ci.yml`).
+
 Built with Rust + comfy-table.

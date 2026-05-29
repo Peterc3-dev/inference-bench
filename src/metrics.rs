@@ -54,15 +54,12 @@ fn read_gpu_mem_used(mem_type: &str) -> u64 {
         if !name.starts_with("card") || name.contains('-') {
             continue;
         }
-        let total_path = format!(
-            "{}/{}/device/mem_info_{}_total",
-            drm_dir, name, mem_type
-        );
-        let used_path = format!(
-            "{}/{}/device/mem_info_{}_used",
-            drm_dir, name, mem_type
-        );
-        if let (Ok(total_s), Ok(used_s)) = (fs::read_to_string(&total_path), fs::read_to_string(&used_path)) {
+        let total_path = format!("{}/{}/device/mem_info_{}_total", drm_dir, name, mem_type);
+        let used_path = format!("{}/{}/device/mem_info_{}_used", drm_dir, name, mem_type);
+        if let (Ok(total_s), Ok(used_s)) = (
+            fs::read_to_string(&total_path),
+            fs::read_to_string(&used_path),
+        ) {
             let total: u64 = total_s.trim().parse().unwrap_or(0);
             let used: u64 = used_s.trim().parse().unwrap_or(0);
             if total > 0 {
@@ -85,4 +82,35 @@ pub fn mean_std(values: &[f64]) -> (f64, f64) {
     }
     let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (n - 1.0);
     (mean, variance.sqrt())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mean_std_empty() {
+        assert_eq!(mean_std(&[]), (0.0, 0.0));
+    }
+
+    #[test]
+    fn mean_std_single() {
+        // A single sample has no spread; std is defined as 0.
+        assert_eq!(mean_std(&[5.0]), (5.0, 0.0));
+    }
+
+    #[test]
+    fn mean_std_known_values() {
+        // Sample std (n-1 denominator) of [2,4,4,4,5,5,7,9] is 2.13809...
+        let (mean, std) = mean_std(&[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]);
+        assert!((mean - 5.0).abs() < 1e-9);
+        assert!((std - 2.138_089_935_299_395).abs() < 1e-9);
+    }
+
+    #[test]
+    fn mean_std_identical_values_zero_std() {
+        let (mean, std) = mean_std(&[3.0, 3.0, 3.0]);
+        assert!((mean - 3.0).abs() < 1e-9);
+        assert!(std.abs() < 1e-9);
+    }
 }
