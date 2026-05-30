@@ -28,7 +28,13 @@ impl Endpoint {
     }
 
     /// Build the request body for a generation request.
-    pub fn build_body(&self, model: &str, prompt: &str, num_predict: u32, stream: bool) -> serde_json::Value {
+    pub fn build_body(
+        &self,
+        model: &str,
+        prompt: &str,
+        num_predict: u32,
+        stream: bool,
+    ) -> serde_json::Value {
         match self.kind {
             EndpointKind::Ollama | EndpointKind::FastFlowLM => {
                 serde_json::json!({
@@ -56,7 +62,11 @@ impl Endpoint {
 pub fn parse_ollama_stream_line(line: &str) -> Option<(String, bool)> {
     let v: serde_json::Value = serde_json::from_str(line).ok()?;
     let done = v.get("done").and_then(|d| d.as_bool()).unwrap_or(false);
-    let token = v.get("response").and_then(|r| r.as_str()).unwrap_or("").to_string();
+    let token = v
+        .get("response")
+        .and_then(|r| r.as_str())
+        .unwrap_or("")
+        .to_string();
     Some((token, done))
 }
 
@@ -69,7 +79,11 @@ pub fn parse_llamacpp_stream_line(line: &str) -> Option<(String, bool)> {
     }
     let v: serde_json::Value = serde_json::from_str(data).ok()?;
     let stop = v.get("stop").and_then(|s| s.as_bool()).unwrap_or(false);
-    let token = v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+    let token = v
+        .get("content")
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .to_string();
     Some((token, stop))
 }
 
@@ -120,5 +134,143 @@ pub fn parse_llamacpp_timings(body: &str) -> ApiTimings {
         eval_duration_ns: predicted_ms.map(|m| (m * 1_000_000.0) as u64),
         eval_count: predicted_n,
         prompt_eval_count: prompt_n,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ep(kind: EndpointKind) -> Endpoint {
+        Endpoint {
+            name: "test".to_string(),
+            base_url: "http://localhost:9999".to_string(),
+            kind,
+        }
+    }
+
+    #[test]
+    fn generate_url_per_kind() {
+        assert_eq!(
+            ep(EndpointKind::Ollama).generate_url(),
+            "http://localhost:9999/api/generate"
+        );
+        assert_eq!(
+            ep(EndpointKind::FastFlowLM).generate_url(),
+            "http://localhost:9999/api/generate"
+        );
+        assert_eq!(
+            ep(EndpointKind::LlamaCpp).generate_url(),
+            "http://localhost:9999/completion"
+        );
+    }
+
+    #[test]
+    fn build_body_ollama_shape() {
+        let body = ep(EndpointKind::Ollama).build_body("qwen3:4b", "hi", 42, true);
+        assert_eq!(body["model"], "qwen3:4b");
+        assert_eq!(body["prompt"], "hi");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["options"]["num_predict"], 42);
+    }
+
+    #[test]
+    fn build_body_llamacpp_shape() {
+        let body = ep(EndpointKind::LlamaCpp).build_body("ignored", "hi", 42, false);
+        assert_eq!(body["prompt"], "hi");
+        assert_eq!(body["n_predict"], 42);
+        assert_eq!(body["stream"], false);
+        // llama.cpp body carries no model field
+        assert!(body.get("model").is_none());
+    }
+
+    #[test]
+    fn parse_ollama_stream_token() {
+        let line = r#"{"response":"Hello","done":false}"#;
+        assert_eq!(
+            parse_ollama_stream_line(line),
+            Some(("Hello".to_string(), false))
+        );
+    }
+
+    #[test]
+    fn parse_ollama_stream_done() {
+        let line = r#"{"response":"","done":true}"#;
+        assert_eq!(parse_ollama_stream_line(line), Some((String::new(), true)));
+    }
+
+    #[test]
+    fn parse_ollama_stream_invalid_json() {
+        assert_eq!(parse_ollama_stream_line("not json"), None);
+    }
+
+    #[test]
+    fn parse_llamacpp_stream_token() {
+        let line = r#"data: {"content":"Hi","stop":false}"#;
+        assert_eq!(
+            parse_llamacpp_stream_line(line),
+            Some(("Hi".to_string(), false))
+        );
+    }
+
+    #[test]
+    fn parse_llamacpp_stream_done_marker() {
+        assert_eq!(
+            parse_llamacpp_stream_line("data: [DONE]"),
+            Some((String::new(), true))
+        );
+    }
+
+    #[test]
+    fn parse_llamacpp_stream_stop_flag() {
+        let line = r#"data: {"content":"","stop":true}"#;
+        assert_eq!(
+            parse_llamacpp_stream_line(line),
+            Some((String::new(), true))
+        );
+    }
+
+    #[test]
+    fn parse_llamacpp_stream_without_prefix_is_none() {
+        // Lines that are not SSE `data:` frames are ignored.
+        assert_eq!(parse_llamacpp_stream_line("event: ping"), None);
+    }
+
+    #[test]
+    fn parse_ollama_timings_extracts_fields() {
+        let body = r#"{"total_duration":1000,"prompt_eval_duration":400,
+            "eval_duration":600,"eval_count":12,"prompt_eval_count":34}"#;
+        let t = parse_ollama_timings(body);
+        assert_eq!(t.total_duration_ns, Some(1000));
+        assert_eq!(t.prompt_eval_duration_ns, Some(400));
+        assert_eq!(t.eval_duration_ns, Some(600));
+        assert_eq!(t.eval_count, Some(12));
+        assert_eq!(t.prompt_eval_count, Some(34));
+    }
+
+    #[test]
+    fn parse_ollama_timings_invalid_is_default() {
+        let t = parse_ollama_timings("garbage");
+        assert_eq!(t.total_duration_ns, None);
+        assert_eq!(t.prompt_eval_count, None);
+    }
+
+    #[test]
+    fn parse_llamacpp_timings_converts_ms_to_ns() {
+        let body = r#"{"timings":{"prompt_ms":10.0,"predicted_ms":20.0,
+            "predicted_n":5,"prompt_n":7}}"#;
+        let t = parse_llamacpp_timings(body);
+        assert_eq!(t.prompt_eval_duration_ns, Some(10_000_000));
+        assert_eq!(t.eval_duration_ns, Some(20_000_000));
+        assert_eq!(t.total_duration_ns, Some(30_000_000));
+        assert_eq!(t.eval_count, Some(5));
+        assert_eq!(t.prompt_eval_count, Some(7));
+    }
+
+    #[test]
+    fn parse_llamacpp_timings_missing_block_is_default() {
+        let t = parse_llamacpp_timings(r#"{"content":"hi"}"#);
+        assert_eq!(t.prompt_eval_duration_ns, None);
+        assert_eq!(t.total_duration_ns, None);
     }
 }

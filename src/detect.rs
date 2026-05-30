@@ -42,7 +42,10 @@ fn probe(ep: &Endpoint) -> bool {
         }
     };
 
-    match ureq::get(&url).timeout(std::time::Duration::from_secs(2)).call() {
+    match ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(2))
+        .call()
+    {
         Ok(resp) => resp.status() == 200,
         Err(_) => false,
     }
